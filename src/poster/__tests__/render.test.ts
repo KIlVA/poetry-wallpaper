@@ -65,7 +65,7 @@ function baseState(): EditorState {
   };
 }
 
-// 共享能力用局部模板验证，不依赖生产版式。
+// 共享能力用局部模板验证，不依赖已退役的生产版式。
 const TEST_TEMPLATE: Template = {
   id: 'render-test',
   name: '渲染测试',
@@ -297,8 +297,8 @@ describe('renderTemplate 确定性', () => {
     expect(creditField.fontSize).toBe(0.012);
     expect(creditField.maxChars).toBe(24);
     const credit = creditField.rect;
- // credit 气口：右侧不贴照片右边，距照片底留呼吸边
-    expect(credit.x + credit.w).toBeCloseTo(0.86, 8);
+    // credit 贴照片 margin：右缘距照片右缘留 0.028，底边距照片底留 0.028
+    expect(credit.x + credit.w).toBeCloseTo(0.92 - 0.028, 8);
     expect(photo.y + photo.h - credit.y - credit.h).toBeCloseTo(0.028, 8);
     const stickers = texts.flatMap((text) =>
       text.inlineImage?.sticker ? [text.inlineImage.sticker.rect] : [],
@@ -444,8 +444,8 @@ describe('renderTemplate 确定性', () => {
   });
 
   it('质感无配方时静默跳过不崩（r31：glitchArt 已从模板删配）', () => {
- // textureStyles 里的 style 在模板 textures 找不到 def → drawTexture 不执行
- //（WebGL 质感同理：无 WebGL 静默跳过）。渲染应照常完成且确定性。
+    // textureStyles 里的 style 在模板 textures 找不到 def → drawTexture 不执行
+    //（WebGL 质感同理：无 WebGL 静默跳过）。渲染应照常完成且确定性。
     const norm = (calls: Array<[string, ...unknown[]]>) =>
       JSON.stringify(calls, (_k, v) => (typeof v === 'function' ? 'fn' : v));
     const state = { ...baseState(), textureStyles: ['glitchArt'] };
@@ -457,7 +457,7 @@ describe('renderTemplate 确定性', () => {
   });
 
   it('诗句嵌图：盲文质感渲染路径存在且确定性（r12）', () => {
- // 序列规范化（函数折叠成 'fn'）：比较调用序列，不比较潜在闭包引用。
+    // 序列规范化（函数折叠成 'fn'）：比较调用序列，不比较潜在闭包引用。
     const norm = (calls: Array<[string, ...unknown[]]>) =>
       JSON.stringify(calls, (_k, v) => (typeof v === 'function' ? 'fn' : v));
     const state = { ...baseState(), textureStyles: ['braille'] };
@@ -465,7 +465,7 @@ describe('renderTemplate 确定性', () => {
     const b = recordingCtx();
     renderTemplate(a.ctx, TYPOW_POEM, state, 300, 533);
     renderTemplate(b.ctx, TYPOW_POEM, state, 300, 533);
- // 同输入两次渲染一致（确定性）+ 路径非空（arc=盲文圆点）
+    // 同输入两次渲染一致（确定性）+ 路径非空（arc=盲文圆点）
     expect(norm(b.calls)).toBe(norm(a.calls));
     expect(
       a.calls.some(([name]) => name === 'arc'),
@@ -474,8 +474,8 @@ describe('renderTemplate 确定性', () => {
   });
 
   it('shader 背景（003）：无 WebGL 时回退渐变且渲染确定性', () => {
- // mock 环境（happy-dom/Proxy ctx）无 WebGL → getShaderCanvas 返回 null，
- // 应走 dualToneFill 渐变回退，且同输入调用序列一致
+    // mock 环境（happy-dom/Proxy ctx）无 WebGL → getShaderCanvas 返回 null，
+    // 应走 dualToneFill 渐变回退，且同输入调用序列一致
     const norm = (calls: Array<[string, ...unknown[]]>) =>
       JSON.stringify(calls, (_k, v) => (typeof v === 'function' ? 'fn' : v));
     const state = baseState();
@@ -485,15 +485,15 @@ describe('renderTemplate 确定性', () => {
     renderTemplate(a.ctx, TYPOW_POEM, state, 300, 533);
     renderTemplate(b.ctx, TYPOW_POEM, state, 300, 533);
     expect(norm(b.calls)).toBe(norm(a.calls));
- // 回退路径生效：画了整幅底（fillRect 0,0,w,h 存在）
+    // 回退路径生效：画了整幅底（fillRect 0,0,w,h 存在）
     expect(
       a.calls.some(([name, ...args]) => name === 'fillRect' && args[0] === 0 && args[1] === 0),
     ).toBe(true);
   });
 
   it('shader 质感（003）：无 WebGL 时静默跳过且渲染确定性', () => {
- // mock 环境无 WebGL → drawTexture 的 shader 分支 no-op，
- // 不应抛错；同输入两次渲染调用序列一致（与背景回退同构）
+    // mock 环境无 WebGL → drawTexture 的 shader 分支 no-op，
+    // 不应抛错；同输入两次渲染调用序列一致（与背景回退同构）
     const norm = (calls: Array<[string, ...unknown[]]>) =>
       JSON.stringify(calls, (_k, v) => (typeof v === 'function' ? 'fn' : v));
     const state = { ...baseState(), textureStyles: ['glassTex'] };
@@ -504,9 +504,9 @@ describe('renderTemplate 确定性', () => {
     expect(norm(b.calls)).toBe(norm(a.calls));
   });
 
-  it('字体全局同步（r35）：fontOverride 改变渲染路径且确定性', () => {
- // 全局字体换 VT323 → ctx.font 赋值串里出现 VT323（诗句行/credit 全走它）；
- // 同输入两次渲染调用序列一致
+  it('字体全局同步：fontOverride 改变渲染路径且确定性', () => {
+    // 全局字体换 VT323 → ctx.font 赋值串里出现 VT323（诗句行/credit 全走它）；
+    // 同输入两次渲染调用序列一致
     const norm = (calls: Array<[string, ...unknown[]]>) =>
       JSON.stringify(calls, (_k, v) => (typeof v === 'function' ? 'fn' : v));
     const state = {
@@ -518,7 +518,7 @@ describe('renderTemplate 确定性', () => {
     renderTemplate(a.ctx, TYPOW_POEM, state, 300, 533);
     renderTemplate(b.ctx, TYPOW_POEM, state, 300, 533);
     expect(norm(b.calls)).toBe(norm(a.calls));
- // font 赋值经 ctx.font setter 进 calls：全局同步后非 credit 行也用 VT323
+    // font 赋值经 ctx.font setter 进 calls：全局同步后非 credit 行也用 VT323
     const fontSet = a.calls.filter(([name]) => name === 'font').map((c) => String(c[1]));
     expect(fontSet.some((f) => f.includes('VT323'))).toBe(true);
     expect(
@@ -530,7 +530,7 @@ describe('renderTemplate 确定性', () => {
     const state = { ...baseState(), creditColor: '#123456' };
     const { ctx, calls } = recordingCtx();
     renderTemplate(ctx, TYPOW_POEM, state, 300, 533);
- // credit 行 fillStyle 出现覆盖色，诗句行 fillStyle 仍是模板白 #ffffff
+    // credit 行 fillStyle 出现覆盖色，诗句行 fillStyle 仍是模板白 #ffffff
     const fills = calls.filter(([name]) => name === 'fillStyle').map((c) => c[1]);
     expect(fills).toContain('#123456');
     expect(fills).toContain('#ffffff');
