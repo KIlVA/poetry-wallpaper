@@ -15,7 +15,7 @@ export const TYPOW_POEM: Template = {
   canvasH: 1820,
   controls: [],
   backgroundGradient: { from: '#b04ef0', to: '#ff5f8f' },
-  // 盲文凸点；删故障风（glitchArt）；删网点（halftone）、加米白点阵（dotGrid）
+  // 盲文凸点；二轮删故障风（glitchArt）；删网点（halftone）、加米白点阵（dotGrid）
   // 003 shader 质感：灰度光照层整版叠加（中性灰基准 + overlay，底色透出）
   textures: [
     { style: 'none', procedural: 'noise', opacity: 0, blend: 'source-over' },
@@ -47,7 +47,7 @@ export const TYPOW_POEM: Template = {
       // 图文共用红框边界；字号作为自适应上限，每行最多40字符。
       // 照片内裁块按旧照片框的相对位置同步缩放，保持0.055行距和0.06em字距。
       {
-        // 第 1 行：A kaleido[挖 co]scope of painted wings dance（r6：挖 co）
+        // 第 1 行：A kaleido[挖 co]scope of painted wings dance（挖 co）
         id: 'line-1',
         rect: { x: 0.08, y: 0.21, w: 0.84, h: 0.05 },
         fontSize: 0.032,
@@ -73,7 +73,7 @@ export const TYPOW_POEM: Template = {
         },
       },
       {
-        // 第 2 行：across the vast and [挖 ran]quil（r6：tranquil 挖 ran）
+        // 第 2 行：across the vast and [挖 ran]quil（
         id: 'line-2',
         rect: { x: 0.08, y: 0.265, w: 0.84, h: 0.05 },
         fontSize: 0.032,
@@ -99,9 +99,10 @@ export const TYPOW_POEM: Template = {
         },
       },
       {
-        // 第 3 行：cerulean [挖 sky]（r6：sky 挖全词）
+        // 第 3 行：cerulean [挖 sky]（sky 挖全词）
+        // 第 3 行下移贴近照片顶边（照片顶 ≈0.4625，行底 0.45 留 0.0125 间隙）
         id: 'line-3',
-        rect: { x: 0.08, y: 0.32, w: 0.84, h: 0.05 },
+        rect: { x: 0.08, y: 0.4, w: 0.84, h: 0.05 },
         fontSize: 0.032,
         letterSpacing: 0.06,
         maxChars: 40,
@@ -125,7 +126,7 @@ export const TYPOW_POEM: Template = {
         },
       },
       {
-        // 署名最多24字符；credit 贴照片 margin：底边距照片底 0.028 气口，
+        // 署名最多24字符；credit 下移贴照片 margin：底边距照片底 0.028 气口，
         // 右缘与照片右缘（x+w=0.92）对齐留 0.028 呼吸边，文字右对齐。
         id: 'credit',
         rect: { x: 0.08, y: 0.44 + (0.88 * 1024) / 1820 - 0.028 - 0.03, w: 0.812, h: 0.03 },

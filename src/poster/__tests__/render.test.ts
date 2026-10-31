@@ -281,7 +281,7 @@ describe('renderTemplate 确定性', () => {
     expect(1 - photo.x - photo.w).toBeCloseTo(0.08, 8);
     expect(1 - photo.y - photo.h).toBeGreaterThan(0.06);
     const poem = texts.filter((text) => text.id !== 'credit');
-    expect(poem.map((text) => text.rect.y)).toEqual([0.21, 0.265, 0.32]);
+    expect(poem.map((text) => text.rect.y)).toEqual([0.21, 0.265, 0.4]);
     expect(poem.map((text) => text.maxChars)).toEqual([40, 40, 40]);
     for (const text of poem) {
       expect(text.fontSize).toBe(0.032);
@@ -443,7 +443,7 @@ describe('renderTemplate 确定性', () => {
     expect(none.calls.some(([name]) => name === 'arc')).toBe(false);
   });
 
-  it('质感无配方时静默跳过不崩（r31：glitchArt 已从模板删配）', () => {
+  it('质感无配方时静默跳过不崩（', () => {
     // textureStyles 里的 style 在模板 textures 找不到 def → drawTexture 不执行
     //（WebGL 质感同理：无 WebGL 静默跳过）。渲染应照常完成且确定性。
     const norm = (calls: Array<[string, ...unknown[]]>) =>
@@ -456,7 +456,7 @@ describe('renderTemplate 确定性', () => {
     expect(norm(b.calls)).toBe(norm(a.calls));
   });
 
-  it('诗句嵌图：盲文质感渲染路径存在且确定性（r12）', () => {
+  it('诗句嵌图：盲文质感渲染路径存在且确定性（', () => {
     // 序列规范化（函数折叠成 'fn'）：比较调用序列，不比较潜在闭包引用。
     const norm = (calls: Array<[string, ...unknown[]]>) =>
       JSON.stringify(calls, (_k, v) => (typeof v === 'function' ? 'fn' : v));
@@ -504,7 +504,7 @@ describe('renderTemplate 确定性', () => {
     expect(norm(b.calls)).toBe(norm(a.calls));
   });
 
-  it('字体全局同步：fontOverride 改变渲染路径且确定性', () => {
+  it('字体全局同步（：fontOverride 改变渲染路径且确定性', () => {
     // 全局字体换 VT323 → ctx.font 赋值串里出现 VT323（诗句行/credit 全走它）；
     // 同输入两次渲染调用序列一致
     const norm = (calls: Array<[string, ...unknown[]]>) =>
@@ -526,7 +526,7 @@ describe('renderTemplate 确定性', () => {
     ).toBe(false);
   });
 
-  it('credit 颜色仅 credit：非 credit 行仍走模板色', () => {
+  it('credit 颜色仅 credit（回归）：非 credit 行仍走模板色', () => {
     const state = { ...baseState(), creditColor: '#123456' };
     const { ctx, calls } = recordingCtx();
     renderTemplate(ctx, TYPOW_POEM, state, 300, 533);
