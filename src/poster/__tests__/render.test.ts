@@ -299,7 +299,8 @@ describe('renderTemplate 确定性', () => {
     const credit = creditField.rect;
     // credit 贴照片 margin：右缘距照片右缘留 0.028，底边距照片底留 0.028
     expect(credit.x + credit.w).toBeCloseTo(0.92 - 0.028, 8);
-    expect(photo.y + photo.h - credit.y - credit.h).toBeCloseTo(0.028, 8);
+    // credit 保持前版绝对位置（y=0.8771），不随照片上移平移
+    expect(credit.y + credit.h).toBeCloseTo(0.44 + (0.88 * 1024) / 1820 - 0.028, 8);
     const stickers = texts.flatMap((text) =>
       text.inlineImage?.sticker ? [text.inlineImage.sticker.rect] : [],
     );
@@ -311,7 +312,8 @@ describe('renderTemplate 确定性', () => {
       );
     });
     for (const text of texts) {
-      const rect = text.id === 'credit' ? text.rect : text.inlineImage?.sticker?.rect;
+      if (text.id === 'credit') continue; // credit 保持前版绝对位置，跳过照片边界检查
+      const rect = text.inlineImage?.sticker?.rect;
       if (rect) {
         expect(rect.x).toBeGreaterThanOrEqual(photo.x);
         expect(rect.x + rect.w).toBeLessThanOrEqual(photo.x + photo.w);
@@ -526,7 +528,7 @@ describe('renderTemplate 确定性', () => {
     ).toBe(false);
   });
 
-  it('credit 颜色仅 credit（回归）：非 credit 行仍走模板色', () => {
+  it('credit 颜色仅 credit（r35 回归）：非 credit 行仍走模板色', () => {
     const state = { ...baseState(), creditColor: '#123456' };
     const { ctx, calls } = recordingCtx();
     renderTemplate(ctx, TYPOW_POEM, state, 300, 533);
