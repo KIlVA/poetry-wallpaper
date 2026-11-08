@@ -528,7 +528,7 @@ describe('renderTemplate 确定性', () => {
     ).toBe(false);
   });
 
-  it('credit 颜色仅 credit（回归）：非 credit 行仍走模板色', () => {
+  it('credit 颜色仅 credit（r35 回归）：非 credit 行仍走模板色', () => {
     const state = { ...baseState(), creditColor: '#123456' };
     const { ctx, calls } = recordingCtx();
     renderTemplate(ctx, TYPOW_POEM, state, 300, 533);

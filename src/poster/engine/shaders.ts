@@ -1,9 +1,9 @@
 /**
- * 程序化 shader 背景（poetry-wallpaper）。
+ * 程序化 shader 背景（003-poetry-wallpaper S3）。
  *
  * 零依赖：fragment shader 内联为字符串，离屏 WebGL canvas 渲一帧，
  * 再由 renderTemplate 用 drawImage 贴进 2D 管线。结果按 名称+尺寸 缓存，
- * 预览与导出（同尺寸）复用同一张底图 —— 确定性满足 。
+ * 预览与导出（同尺寸）复用同一张底图 —— 确定性满足 AC-06。
  *
  * 来源：figcraft0/figcraft/glass-shader.html、ripple-shader.html（纯 WebGL，无外部资源）。
  */
@@ -107,8 +107,8 @@ float field(vec2 p, float t){
 }
 
 void main(){
- // 全幅铺满（壁纸用，去掉原 demo 的 4:5 画框与画框外底色）；
- // 等比坐标（不再 x*1.25 拉伸）→ 波圈正圆（ 反馈：圆圈改圆）
+  // 全幅铺满（壁纸用，去掉原 demo 的 4:5 画框与画框外底色）；
+  // 等比坐标（不再 x*1.25 拉伸）→ 波圈正圆（r31 反馈：圆圈改圆）
   vec2 c0 = (gl_FragCoord.xy - 0.5*u_res)/u_res.y;
   vec2 p = c0;
   float t = u_time * 0.4;
@@ -123,7 +123,7 @@ void main(){
   float spec = pow(max(dot(n,H),0.0), 60.0);
   float diff = 0.5 + 0.5*dot(n,L);
 
- // 调色（回退原薄荷青； 反馈：多色背景全部回退上一版）
+  // 调色（回退原薄荷青；r31 反馈：多色背景全部回退上一版）
   float sh = field(p,t)*1.4 + (n.x+n.y)*0.5;
   vec3 col = mix(vec3(0.87,0.96,0.95), vec3(0.45,0.83,0.81), smoothstep(-0.3,0.4,sh));
   col = mix(col, vec3(0.13,0.62,0.63), smoothstep(0.2,0.9,sh));
@@ -175,7 +175,7 @@ void main(){
   vec3 L=normalize(vec3(-0.45,0.55,0.6));
   float diff=0.55+0.45*dot(n,L);
   float spec=pow(max(dot(n,normalize(L+vec3(0.,0.,1.))),0.0),24.0);
- // 光照 → 中性灰偏移：0.5 基准，diff/spec 只做明暗
+  // 光照 → 中性灰偏移：0.5 基准，diff/spec 只做明暗
   float lum=0.5+(diff-0.775)*0.55+spec*0.35;
   lum+=(hash1(gl_FragCoord.xy)-0.5)*0.06;
   gl_FragColor=vec4(vec3(clamp(lum,0.,1.)),1.0);
@@ -207,7 +207,7 @@ float field(vec2 p, float t){
   return h;
 }
 void main(){
- // 等比坐标（与 rippleTex 背景一致的正圆波圈）
+  // 等比坐标（与 rippleTex 背景一致的正圆波圈）
   vec2 c0 = (gl_FragCoord.xy - 0.5*u_res)/u_res.y;
   vec2 p = c0;
   float t = u_time * 0.4;
@@ -229,8 +229,8 @@ const DOTS_BLUR_FS = `precision highp float;
 uniform vec2 u_res;
 float hash1(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 void main(){
- // 统一柔点：与背景版（dotsBlurBg）同尺寸同分布 ——
- // 网格 5、点半径 0.48（原径向衰减的最大值），均匀分布无衰减。
+  // r32 统一柔点：与背景版（dotsBlurBg）同尺寸同分布 ——
+  // 网格 5、点半径 0.48（原径向衰减的最大值），均匀分布无衰减。
   vec2 p=(gl_FragCoord.xy-0.5*u_res)/u_res.y;
   vec2 f=fract(p*5.0)-0.5;
   float d=length(f);
@@ -241,7 +241,7 @@ void main(){
 }`;
 
 /** 柔点网格背景版（r32）：米白灰调底 + 均匀黑点真实颜色输出（非灰度层）——
- * 与整版质感 dotsBlur 同尺寸同分布（网格 5、半径 0.48）；纯白底改米白 beige。 */
+ *  与整版质感 dotsBlur 同尺寸同分布（网格 5、半径 0.48）；纯白底改米白 beige。 */
 const DOTS_BLUR_BG_FS = `precision highp float;
 uniform vec2 u_res;
 void main(){
@@ -249,7 +249,7 @@ void main(){
   vec2 f=fract(p*5.0)-0.5;
   float d=length(f);
   float dot_=smoothstep(0.48,0.48-0.14,d);
- // 底色米白灰调（原纯白 1.0 压到 beige）；点深灰（非纯黑，柔感）
+  // 底色米白灰调（原纯白 1.0 压到 beige）；点深灰（非纯黑，柔感）
   vec3 base=vec3(0.93,0.91,0.87);
   vec3 dotCol=vec3(0.12);
   vec3 col=mix(base,dotCol,dot_);
@@ -275,7 +275,7 @@ void main(){
   float light=fbm(p*vec2(1.6,1.1)+vec2(3.3,7.7));
   light=smoothstep(0.20,0.85,light);
   float shade=mix(0.15,1.15,light);
- // 棱纹亮度（0~1）→ 中性灰偏移：谷暗棱亮
+  // 棱纹亮度（0~1）→ 中性灰偏移：谷暗棱亮
   float lum=0.5+(rib*shade-0.55)*0.6;
   lum+=(hash1(gl_FragCoord.xy)-0.5)*0.14;
   gl_FragColor=vec4(vec3(clamp(lum,0.,1.)),1.0);
@@ -305,9 +305,9 @@ void main(){
   vec2 f=fract(hg)-0.5;
   float d=length(f);
   float r=0.15+0.42*g;
- // 二轮风格化：更锐的硬边点（smoothstep 带 0.04 窄过渡）
+  // r31 二轮风格化：更锐的硬边点（smoothstep 带 0.04 窄过渡）
   float dot_=smoothstep(r,r-0.04,d);
- // 黑白对撞：点近全亮 0.96，空白近全暗 0.04（overlay 下强对比）
+  // 黑白对撞：点近全亮 0.96，空白近全暗 0.04（overlay 下强对比）
   float lum=0.04+dot_*0.92;
   lum+=(hash1(gl_FragCoord.xy)-0.5)*0.06;
   gl_FragColor=vec4(vec3(clamp(lum,0.,1.)),1.0);
@@ -343,7 +343,7 @@ const FRAGMENTS: Record<ShaderName, string> = {
  * WebGL 不可用返回 null，调用方回退纯色底。
  */
 export function getShaderCanvas(name: ShaderName, w: number, h: number): HTMLCanvasElement | null {
- // 调用方（drawTexture）以 TextureDef.procedural 断言传入，非 shader 名直接回退 2D 路径
+  // 调用方（drawTexture）以 TextureDef.procedural 断言传入，非 shader 名直接回退 2D 路径
   if (!FRAGMENTS[name]) return null;
   const key = `${name}:${w}x${h}`;
   const hit = cache.get(key);
@@ -374,10 +374,10 @@ export function getShaderCanvas(name: ShaderName, w: number, h: number): HTMLCan
     }
     gl.viewport(0, 0, w, h);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
- // 缓存必须存 2D 拷贝而非 WebGL canvas 本身：每张缓存各持一个活 GL context，
- // 页面累计 10+ 个会被浏览器按上限强制 lost（最老的最先丢）→ 瓦楞等默认质感
- // 间歇性变空白且命中缓存永不重渲，只有刷新才恢复。渲染后同 task 内拷贝
- // （drawing buffer compositing 后会被清空，不能拖到下一帧再拷）并主动释放。
+    // 缓存必须存 2D 拷贝而非 WebGL canvas 本身：每张缓存各持一个活 GL context，
+    // 页面累计 10+ 个会被浏览器按上限强制 lost（最老的最先丢）→ 瓦楞等默认质感
+    // 间歇性变空白且命中缓存永不重渲，只有刷新才恢复。渲染后同 task 内拷贝
+    // （drawing buffer compositing 后会被清空，不能拖到下一帧再拷）并主动释放。
     const out = document.createElement('canvas');
     out.width = w;
     out.height = h;

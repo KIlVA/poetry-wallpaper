@@ -1,13 +1,13 @@
 /**
- * 单 renderer 渲染函数。
+ * 单 renderer 渲染函数（D-003）。
  *
  * 纯函数：给定 template + 编辑状态 + 画布尺寸，把版式画到 ctx 上。
- * 预览与导出走同一代码路径，仅 canvasW/H 不同 —— 预览与导出逐像素一致。
+ * 预览与导出走同一代码路径，仅 canvasW/H 不同 —— 预览与导出逐像素一致（AC-05）。
  *
- * 确定性约束（ / ）：渲染路径内禁止 Math.random；
+ * 确定性约束（AC-06 / D-002）：渲染路径内禁止 Math.random；
  * shard 形状由 seed 驱动的伪随机生成，同 seed 同形状（导出可复现）。
  *
- * V2 切片模型（/#6）：照片保持完整；
+ * V2 切片模型（反馈 #5/#6）：照片保持完整；
  * 每个 Cutout = 洞（显示 sliceColor）+ 转移块（切下的图贴到色块区）。
  */
 import type { Cutout, PhotoMaterial, Template, TextField, TextureDef, TextureStyle } from './types';
@@ -24,7 +24,7 @@ export interface EditorState {
   texts: Map<string, string>;
   /** 镂空切片列表（用户点击创建，可多颗） */
   cutouts: Cutout[];
-  /** 质感选择（TextureDef.style）；支持多选（数组，可同时叠多种质感） */
+  /** 质感选择（TextureDef.style）；r21 起多选（数组，可同时叠多种质感） */
   textureStyles: string[];
   /** 自定义渐变底色（G9 等 backgroundGradient 模板可覆盖；缺省用模板默认） */
   gradientOverride?: {
@@ -33,23 +33,23 @@ export interface EditorState {
     mode?: 'smooth' | 'splitX' | 'splitY' | 'weave' | 'fluid';
     /** 撞色分割线位置（0~1，0.5=中线；smooth/weave/fluid 忽略） */
     split?: number;
-    /** 多段渐变方向与标志（透传模板同款字段） */
+    /** r27 多段渐变方向与标志（透传模板同款字段） */
     stops?: { at: number; color: string }[];
     dir?: 'v' | 'h';
     vignette?: boolean;
     dotGrid?: boolean;
-    /** 程序化 shader 背景（优先于渐变）；dotsBlurBg/corrugated 黑白版 */
+    /** 003：程序化 shader 背景（优先于渐变）；r31 dotsBlurBg/corrugated 黑白版 */
     shader?: 'glass' | 'ripple' | 'dotsBlurBg' | 'corrugated';
   };
-  /** 照片局部材质：仅照片槽区域，不影响全局质感 */
+  /** 照片局部材质（r20）：仅照片槽区域，不影响全局质感 */
   photoMaterial?: PhotoMaterial;
-  /** credit 文字颜色覆盖（仅 credit） */
+  /** credit 文字颜色覆盖（r20：color picker，仅 credit） */
   creditColor?: string;
-  /** 字体覆盖（全局同步——诗句行/sticker 洞块/credit 全走它；%SZ=字号占位符） */
+  /** 字体覆盖（r35：全局同步——诗句行/sticker 洞块/credit 全走它；%SZ=字号占位符） */
   fontOverride?: string;
-  /** 文字效果覆盖（textEffect 进 state，替代直接改共享模板常量的写法） */
+  /** 文字效果覆盖（r_fix：textEffect 进 state，替代直接改共享模板常量的写法） */
   textEffectOverride?: 'plain' | 'block' | 'halftone';
-  /** 镜面模糊窗口大小：相对照片宽 0~1，固定居中 */
+  /** 镜面模糊窗口大小（r20 图8：相对照片宽 0~1，固定居中） */
   mirrorWindow?: number;
   /** 积木格宽相对源图宽度；不随预览/导出尺寸改变。 */
   brickSize?: number;
@@ -129,7 +129,7 @@ function traceBurst(
 
 /**
  * shard：不规则方形路径。以 seed 生成 4~6 个顶点的凸多边形，
- * 在基础方形上做确定性抖动（同 seed 同形状，）。
+ * 在基础方形上做确定性抖动（同 seed 同形状，反馈 #6）。
  * 顶点在半径 [0.55r, r] 的方形极坐标环上取点再连线。
  */
 function traceShard(
@@ -170,7 +170,7 @@ function traceCutout(ctx: CanvasRenderingContext2D, c: Cutout, w: number, h: num
 
 /**
  * 照片绘制：cover 适配 + pan/zoom + 黑白/双色调。
- * （：拖拽由交互层改 transforms 实现，渲染只读。）
+ * （V2 反馈 #1：拖拽由交互层改 transforms 实现，渲染只读。）
  */
 function drawPhoto(
   ctx: CanvasRenderingContext2D,
@@ -199,7 +199,7 @@ function drawPhoto(
   ctx.drawImage(img, ox, oy, dw, dh);
 
   if (effect === 'grayscale') {
- // 灰色源 + saturation 混合 → 饱和度归零（Canvas 2D 原生混合模式）
+    // 灰色源 + saturation 混合 → 饱和度归零（Canvas 2D 原生混合模式）
     ctx.globalCompositeOperation = 'saturation';
     ctx.fillStyle = '#808080';
     ctx.fillRect(rx, ry, rw, rh);
@@ -220,7 +220,7 @@ function drawPhoto(
 }
 
 /**
- * 质感分组：画在照片图层之下的质感（照片盖在其上）。
+ * r34 质感分组：画在照片图层之下的质感（照片盖在其上）。
  * 其余质感（噪点颗粒/盲文凸点/米白点阵等）画在照片之上（见 renderTemplate 层序）。
  */
 const TEXTURES_BELOW_PHOTO = new Set<TextureStyle>([
@@ -232,14 +232,14 @@ const TEXTURES_BELOW_PHOTO = new Set<TextureStyle>([
 ]);
 
 /**
- * 质感纹理（ + + shader 质感）。全部确定性（seed 固定），无随机源。
- * grain=噪点颗粒；misprint=双色套印；paper=纸纹； 新增三种照片纹理感：
+ * 质感纹理（V2 反馈 #4 + r9 + 003 shader 质感）。全部确定性（seed 固定），无随机源。
+ * grain=噪点颗粒；misprint=双色套印；paper=纸纹；r9 新增三种照片纹理感：
  * scanline=扫描线；dots=半调网点整版；glitch=RGB 错位条纹。
- * ：procedural 名对应 ShaderName 时走 WebGL 灰度光照层（中性灰基准，overlay 叠加），
+ * 003：procedural 名对应 ShaderName 时走 WebGL 灰度光照层（中性灰基准，overlay 叠加），
  * WebGL 不可用静默跳过（jsdom 测试环境自动 no-op）。
  */
 function drawTexture(ctx: CanvasRenderingContext2D, def: TextureDef, w: number, h: number): void {
- // shader 质感：灰度光照层直接贴入（外层统一控制 opacity/blend）
+  // 003 shader 质感：灰度光照层直接贴入（外层统一控制 opacity/blend）
   const shaderCanvas = getShaderCanvas(
     def.procedural as Parameters<typeof getShaderCanvas>[0],
     w,
@@ -269,13 +269,13 @@ function drawTexture(ctx: CanvasRenderingContext2D, def: TextureDef, w: number, 
       }
     }
   } else if (def.procedural === 'glitchart') {
- // 故障风（ SEOUL）：局部化——不是全屏均匀，只在确定性 rand 选出的
- // 几条水平条带内画「扫描线 + RGB 错位」，其余区域干净；条带内叠噪点。
+    // r13 故障风（图2 SEOUL）：局部化——不是全屏均匀，只在确定性 rand 选出的
+    // 几条水平条带内画「扫描线 + RGB 错位」，其余区域干净；条带内叠噪点。
     const bandH = Math.max(4, h / 90); // 条带高度
     const bands = 5; // 全图只有 5 条故障带（局部、非全屏）
     for (let i = 0; i < bands; i++) {
       const y = rand() * (h - bandH);
- // 3a) 条带内扫描线（局部）：非均匀细横线
+      // 3a) 条带内扫描线（局部）：非均匀细横线
       ctx.fillStyle = '#000000';
       let ly = y;
       while (ly < y + bandH) {
@@ -284,13 +284,13 @@ function drawTexture(ctx: CanvasRenderingContext2D, def: TextureDef, w: number, 
         ly += Math.max(2, (h / 300) * (0.5 + rand()));
       }
       ctx.globalAlpha = def.opacity;
- // 3b) 条带内 RGB 错位：红/青水平错开条带（越界自然裁掉）
+      // 3b) 条带内 RGB 错位：红/青水平错开条带（越界自然裁掉）
       const shift = (rand() - 0.5) * w * 0.05;
       ctx.fillStyle = 'rgba(255,0,60,0.55)';
       ctx.fillRect(shift, y, w, bandH * (0.3 + rand() * 0.4));
       ctx.fillStyle = 'rgba(0,255,220,0.4)';
       ctx.fillRect(-shift, y + bandH * 0.4, w, bandH * (0.25 + rand() * 0.35));
- // 3c) 条带内叠噪点（：这个效果同样要叠噪点）
+      // 3c) 条带内叠噪点（r13：这个效果同样要叠噪点）
       const step = Math.max(2, Math.round(w / 400));
       for (let yy = y; yy < y + bandH; yy += step) {
         for (let xx = 0; xx < w; xx += step) {
@@ -304,21 +304,21 @@ function drawTexture(ctx: CanvasRenderingContext2D, def: TextureDef, w: number, 
       ctx.globalAlpha = def.opacity;
     }
   } else if (def.procedural === 'braille') {
- // 盲文凸点：网格点阵，每点 = 亮心 + 深色偏移投影（浮雕感），
- // 密度低于 halftone、点距大，确定性 rand 决定哪些格有点（成簇感）。
- // 用户反馈：密集度再降（网格更大、点更稀）
+    // r12 盲文凸点（图1）：网格点阵，每点 = 亮心 + 深色偏移投影（浮雕感），
+    // 密度低于 halftone、点距大，确定性 rand 决定哪些格有点（成簇感）。
+    // r21 用户反馈：密集度再降（网格更大、点更稀）
     const cell = Math.max(20, w / 28);
     const dotR = cell * 0.18;
     for (let y = cell / 2; y < h; y += cell) {
       for (let x = cell / 2; x < w; x += cell) {
         if (rand() < 0.55) continue; // 稀疏成簇：略过部分格
- // 投影（右下偏移，深色）
+        // 投影（右下偏移，深色）
         ctx.globalAlpha = def.opacity * 0.5;
         ctx.fillStyle = '#000000';
         ctx.beginPath();
         ctx.arc(x + dotR * 0.5, y + dotR * 0.5, dotR, 0, Math.PI * 2);
         ctx.fill();
- // 亮心（浮雕高光）
+        // 亮心（浮雕高光）
         ctx.globalAlpha = def.opacity;
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
@@ -328,7 +328,7 @@ function drawTexture(ctx: CanvasRenderingContext2D, def: TextureDef, w: number, 
       }
     }
   } else if (def.procedural === 'dots') {
- // 半调网点：整版网格圆点（每格半径带确定性抖动，避免机械网格感）
+    // r9 半调网点：整版网格圆点（每格半径带确定性抖动，避免机械网格感）
     const cell = Math.max(6, w / 90);
     ctx.fillStyle = '#000000';
     for (let y = cell / 2; y < h; y += cell) {
@@ -345,8 +345,8 @@ function drawTexture(ctx: CanvasRenderingContext2D, def: TextureDef, w: number, 
       }
     }
   } else if (def.procedural === 'dotGrid') {
- // 米白点阵：与背景 dotGrid同款 —— 均匀等距小圆点，无抖动。
- // 点色带透明度（opacity 由外层 globalAlpha 再控），blend=overlay 时透出底色。
+    // r32 米白点阵：与背景 dotGrid（r27 图15）同款 —— 均匀等距小圆点，无抖动。
+    // 点色带透明度（opacity 由外层 globalAlpha 再控），blend=overlay 时透出底色。
     ctx.fillStyle = '#f5f2ea';
     const step = w / 32;
     for (let y = step; y < h; y += step) {
@@ -357,13 +357,13 @@ function drawTexture(ctx: CanvasRenderingContext2D, def: TextureDef, w: number, 
       }
     }
   } else if (def.procedural === 'misprint') {
- // 双色套印：整版分别向两侧偏移的半透明红/青罩，模拟错版
+    // 双色套印：整版分别向两侧偏移的半透明红/青罩，模拟错版
     ctx.fillStyle = 'rgba(200,16,46,0.5)';
     ctx.fillRect(-w * 0.006, 0, w, h);
     ctx.fillStyle = 'rgba(40,160,170,0.35)';
     ctx.fillRect(w * 0.006, 0, w, h);
   } else if (def.procedural === 'paper') {
- // 纸纹：横向细纹 + 稀疏斑块
+    // 纸纹：横向细纹 + 稀疏斑块
     ctx.fillStyle = '#000000';
     for (let y = 0; y < h; y += Math.max(2, Math.round(h / 700))) {
       ctx.globalAlpha = def.opacity * (0.4 + rand() * 0.6);
@@ -400,7 +400,7 @@ function halftonePattern(
 }
 
 /**
- * 文字绘制（槽位制，）：先测宽，超出槽宽则缩字号（下限 40%），
+ * 文字绘制（槽位制，反馈 #7）：先测宽，超出槽宽则缩字号（下限 40%），
  * 槽位由模板布局保证互不重叠。支持 4 种效果。
  * inlineImage（G9 typow）：把 content 中 [charStart,charEnd) 区间的字符
  * 替换为照片小裁块（前段文字 + 裁块 + 后段文字三段绘制）。
@@ -422,7 +422,7 @@ function drawText(
     aspect: number;
     img: CanvasImageSource | undefined;
   },
-  /** 字体覆盖（全局）：font 简写模板（%SZ=字号占位符；缺省 900 Archivo Black） */
+  /** r35 字体覆盖（全局）：font 简写模板（%SZ=字号占位符；缺省 900 Archivo Black） */
   fontOverride?: string,
 ): void {
   if (!content) return;
@@ -431,9 +431,9 @@ function drawText(
   const rw = rect.w * w;
   const rh = rect.h * h;
 
- // G9 嵌图：拆三段（前文 / 挖空块 / 后文）。
- // 挖空块尺寸 = 被挖字符实测量宽（layoutPoemLine 统一排版，
- // 与置换段两侧同一矩形，：1:1 置换不缩放）
+  // G9 嵌图：拆三段（前文 / 挖空块 / 后文）。
+  // 挖空块尺寸 = 被挖字符实测量宽（layoutPoemLine 统一排版，
+  // 与置换段两侧同一矩形，反馈 #3：1:1 置换不缩放）
   if (inline) {
     const fieldLike = {
       rect,
@@ -461,7 +461,7 @@ function drawText(
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     const drawSeg = (seg: string, sx: number) => {
- // 实心字：实色直接绘制（ 反馈：浮雕半透明不要，要实心）
+      // 实心字：实色直接绘制（r8 反馈：浮雕半透明不要，要实心）
       ctx.fillStyle = color;
       ctx.fillText(seg, sx, baseline);
     };
@@ -470,7 +470,7 @@ function drawText(
       drawSeg(before, cursor);
       cursor += layout.beforeW;
     }
- // 挖空位：置换段画 1:1 置换块（照片裁块）；无照片时画占位色块
+    // 挖空位：置换段画 1:1 置换块（照片裁块）；无照片时画占位色块
     const ih0 = inline.img && 'height' in inline.img ? (inline.img.height as number) : 0;
     if (!inline.img || !ih0) {
       ctx.fillStyle = '#8ab4f8';
@@ -482,7 +482,7 @@ function drawText(
     return;
   }
 
- // 从字号上限量宽缩小，包含字形左右外伸，不再在40%处停止。
+  // 从字号上限量宽缩小，包含字形左右外伸，不再在40%处停止。
   let size = maxFontSize * h;
   const fontTpl = fontOverride ?? "900 %SZpx 'Archivo Black', 'Arial Black', sans-serif";
   ctx.textAlign = 'left';
@@ -494,7 +494,7 @@ function drawText(
     return { width: metrics.width, left, right, total: left + right };
   };
   let m = measure();
- // ponytail: 最多64轮量宽，异常字体不继续绘制；需要更精细拟合时再换算法。
+  // ponytail: 最多64轮量宽，异常字体不继续绘制；需要更精细拟合时再换算法。
   for (let attempt = 0; attempt < 64 && m.total > rw; attempt++) {
     size *= Math.min(0.99, rw / m.total);
     m = measure();
@@ -512,7 +512,7 @@ function drawText(
   ctx.textBaseline = 'alphabetic';
 
   if (textEffect === 'block' && blockColor) {
- // 色块衬底（ you wanna take a bite）：测量文本实际宽，画衬底再叠字
+    // 色块衬底（图 7 you wanna take a bite）：测量文本实际宽，画衬底再叠字
     const tw = Math.min(ctx.measureText(content).width, rw);
     const bx = align === 'left' ? x : align === 'right' ? x - tw : x - tw / 2;
     ctx.save();
@@ -523,7 +523,7 @@ function drawText(
     ctx.fillStyle = color;
     ctx.fillText(content, x, baseline);
   } else if (textEffect === 'halftone') {
- // 网点挖空（ CATTLE）：先画实心描边层，再以网点图案填充内芯
+    // 网点挖空（图 8 CATTLE）：先画实心描边层，再以网点图案填充内芯
     const pattern = halftonePattern(ctx, Math.max(4, size * 0.16), w);
     ctx.save();
     ctx.fillStyle = color;
@@ -552,8 +552,8 @@ interface PoemLineLayout {
 
 /**
  * 诗句行排版（与 drawText inline 分支同规则）：按含字形外伸的总宽自适应，
- * 挖空块宽 = 被挖字符在**缩放后字号**下的实测量宽（两侧块同一尺寸，）。
- * 字体全局同步：fontOverride 透传（%SZ 模板，与 drawText 同一字体栈）。
+ * 挖空块宽 = 被挖字符在**缩放后字号**下的实测量宽（两侧块同一尺寸，反馈 #3）。
+ * r35 字体全局同步：fontOverride 透传（%SZ 模板，与 drawText 同一字体栈）。
  */
 function layoutPoemLine(
   ctx: CanvasRenderingContext2D,
@@ -598,7 +598,7 @@ function layoutPoemLine(
     };
   };
   let m = measure();
- // 与普通文字一样最多64轮，不以40%字号下限放任长句溢出。
+  // 与普通文字一样最多64轮，不以40%字号下限放任长句溢出。
   for (let attempt = 0; attempt < 64 && m.total > rw; attempt++) {
     size *= Math.min(0.99, rw / m.total);
     m = measure();
@@ -622,7 +622,7 @@ function layoutPoemLine(
 }
 
 /**
- * 双色底 paint：按 mode 生成 fillStyle。
+ * 双色底 paint（r5）：按 mode 生成 fillStyle。
  * smooth=对角渐变；splitX/splitY=撞色分割（split=分割线位置 0~1，默认 0.5）。
  * 坐标系以 (gx,gy) 为整幅画布原点的偏移（离屏洞块采样用）——分割线位置随偏移平移，
  * 保证洞块显示的正是该画布位置的原色。
@@ -644,7 +644,7 @@ function dualToneFill(
   gx = 0,
   gy = 0,
 ): string | CanvasGradient {
- // 多段渐变（显式 stops 优先）； dir：v=竖向（默认）/h=横向
+  // r23 多段渐变（显式 stops 优先）；r27 dir：v=竖向（默认）/h=横向（图15）
   if (gradDef.stops && gradDef.stops.length >= 2) {
     const g =
       gradDef.dir === 'h'
@@ -655,22 +655,22 @@ function dualToneFill(
   }
   const split = Math.min(0.9, Math.max(0.1, gradDef.split ?? 0.5));
   if (gradDef.mode === 'splitX' || gradDef.mode === 'splitY') {
- // 上下分割：上 from 下 to，分割线位置可调。splitX 视作 splitY（一律上下分界）。
- // 修复：gradient 跨度 = 全幅画布映射进本地系（global 0 → -gy、global h → h-gy），
- // stop = split → 分割线全局位置恒等于 split*h，主渲染与洞块采样是同一条线：
- // 滑杆居中 → 线落画布中线；线在采样窗口外 → 窗口自然显示对应侧纯色
+    // 上下分割：上 from 下 to，分割线位置可调。splitX 视作 splitY（一律上下分界）。
+    // r18 修复：gradient 跨度 = 全幅画布映射进本地系（global 0 → -gy、global h → h-gy），
+    // stop = split → 分割线全局位置恒等于 split*h，主渲染与洞块采样是同一条线：
+    // 滑杆居中 → 线落画布中线；线在采样窗口外 → 窗口自然显示对应侧纯色
     const g = ctx.createLinearGradient(0, -gy, 0, h - gy);
     g.addColorStop(split - 0.04, gradDef.from);
     g.addColorStop(split + 0.04, gradDef.to);
     return g;
   }
   if (gradDef.mode === 'weave') {
- // 柔性交织（ 蒂芙尼蓝×卡地亚红）：软对角过渡带 + 色团互渗。
- // 对角大过渡带（宽软、0.42→0.58 渐变）+ 色团（from 侧团落到 to 区/反之）。
- // 离屏采样时 gx/gy 已把窗口原点对到诗句洞位，色团布局随窗口平移——
- // 洞块显示的正是该画布位置的原色（与主渲染同构）。
- // 色团画不进 fillStyle（只能返回一种 paint），团由 renderTemplate 绘制：
- // 这里只给过渡带，色团互渗由 dualToneWeaveBlobs 画（同 seed 确定性）。
+    // r19 柔性交织（图1 蒂芙尼蓝×卡地亚红）：软对角过渡带 + 色团互渗。
+    // 对角大过渡带（宽软、0.42→0.58 渐变）+ 色团（from 侧团落到 to 区/反之）。
+    // 离屏采样时 gx/gy 已把窗口原点对到诗句洞位，色团布局随窗口平移——
+    // 洞块显示的正是该画布位置的原色（与主渲染同构）。
+    // 色团画不进 fillStyle（只能返回一种 paint），团由 renderTemplate 绘制：
+    // 这里只给过渡带，色团互渗由 dualToneWeaveBlobs 画（同 seed 确定性）。
     const band = ctx.createLinearGradient(-gx, -gy, w * 0.8 - gx, h * 0.9 - gy);
     band.addColorStop(0, gradDef.from);
     band.addColorStop(0.42, gradDef.from);
@@ -678,7 +678,7 @@ function dualToneFill(
     band.addColorStop(1, gradDef.to);
     return band;
   }
- // smooth：原对角渐变
+  // smooth：原对角渐变
   const g = ctx.createLinearGradient(-gx, -gy, w * 0.35 - gx, h - gy);
   g.addColorStop(0, gradDef.from);
   g.addColorStop(1, gradDef.to);
@@ -686,7 +686,7 @@ function dualToneFill(
 }
 
 /**
- * 流体光晕渐变（/2 重做）：非周期的径向发光团互渗。
+ * r22 流体光晕渐变（图1/2 重做）：非周期的径向发光团互渗。
  * 低分辨率离屏（w/6）画 6~8 个径向渐变云团（from/to 交替、确定性随机点位），
  * 整层放大贴回 —— 放大即软化（双线性插值天然互渗），无任何正弦/周期结构。
  * 亮团集中上半（发光感），暗部沉底；再叠噪点由全局质感负责。
@@ -697,7 +697,7 @@ function drawFluidGlow(
   w: number,
   h: number,
 ): void {
- // 低分辨率离屏：插值放大自带软化晕染
+  // 低分辨率离屏：插值放大自带软化晕染
   const lw = Math.max(32, Math.round(w / 6));
   const lh = Math.max(32, Math.round(h / 6));
   const off = document.createElement('canvas');
@@ -705,11 +705,11 @@ function drawFluidGlow(
   off.height = lh;
   const octx = off.getContext('2d');
   if (!octx) return;
- // 基色（to 侧沉底）
+  // 基色（to 侧沉底）
   octx.fillStyle = gradDef.to;
   octx.fillRect(0, 0, lw, lh);
- // 云涡（ 更像）：三色涡卷团（from 橙 / 白 / to 深蓝穿插），
- // 每团双径向叠拉出方向感（涡卷雏形），数量加密互渗
+  // 云涡（r28 更像图13）：三色涡卷团（from 橙 / 白 / to 深蓝穿插），
+  // 每团双径向叠拉出方向感（涡卷雏形），数量加密互渗
   const rand = seededRandom(0x910d);
   const colors = [gradDef.from, '#ffffff', gradDef.from, gradDef.to, '#ffffff'];
   const blobs = 10;
@@ -717,10 +717,10 @@ function drawFluidGlow(
     const color = colors[i % colors.length];
     const isDark = color === gradDef.to;
     const cx = (0.1 + rand() * 0.8) * lw;
- // 亮团偏上半（发光感），暗团沉底
+    // 亮团偏上半（发光感），暗团沉底
     const cy = isDark ? (0.55 + rand() * 0.4) * lh : (0.06 + rand() * 0.55) * lh;
     const r = lw * (0.2 + rand() * 0.32);
- // 同色双团错位叠（间距 ~r/3）：放大后成方向性拉丝 = 涡卷感
+    // 同色双团错位叠（间距 ~r/3）：放大后成方向性拉丝 = 涡卷感
     for (const [dx, dy, rr] of [
       [0, 0, r],
       [r * 0.3, r * 0.18, r * 0.8],
@@ -732,15 +732,15 @@ function drawFluidGlow(
       octx.fillRect(0, 0, lw, lh);
     }
   }
- // 放大贴回（插值软化 = 云雾互渗）
+  // 放大贴回（插值软化 = 云雾互渗）
   ctx.drawImage(off, 0, 0, w, h);
 }
 
 /**
- * / 照片局部材质（仅照片槽区域，/6/7/8）。
+ * r20/r22 照片局部材质（仅照片槽区域，图5/6/7/8）。
  * 在离屏 canvas 上处理照片（cover+pan/zoom 已画好），再整块贴回：
  * 避免逐像素操作主画布（filter/位移采样都在离屏完成）。
- * 重做；：waterRipple 已删，glassRefract=左→右镂空规律递增；
+ * r22 重做；r31：waterRipple 已删，glassRefract=左→右镂空规律递增；
  * mirrorBlur=模糊区叠轻噪点（非纯高斯）。
  */
 function createBrickPhoto(img: CanvasImageSource, brickSize = 0.025): HTMLCanvasElement | null {
@@ -761,7 +761,7 @@ function createBrickPhoto(img: CanvasImageSource, brickSize = 0.025): HTMLCanvas
   } catch {
     return null;
   }
- // 固定源贴图分辨率，预览与导出只缩放它，不重新起网格。
+  // 固定源贴图分辨率，预览与导出只缩放它，不重新起网格。
   const out = document.createElement('canvas');
   out.width = Math.max(1, Math.round((iw * 1024) / Math.max(iw, ih)));
   out.height = Math.max(1, Math.round((ih * 1024) / Math.max(iw, ih)));
@@ -775,7 +775,7 @@ function createBrickPhoto(img: CanvasImageSource, brickSize = 0.025): HTMLCanvas
       const i = (y * grid.columns + x) * 4;
       const [r, g, b, alpha] = grid.pixels.subarray(i, i + 4);
       if (!alpha) continue;
- // 整数格界无缝分区，避免 clip 抗锯齿让不透明照片的格缝透底。
+      // 整数格界无缝分区，避免 clip 抗锯齿让不透明照片的格缝透底。
       const px = Math.round((x * out.width) / grid.columns),
         py = Math.round((y * out.height) / grid.rows),
         cw = Math.round(((x + 1) * out.width) / grid.columns) - px,
@@ -783,7 +783,7 @@ function createBrickPhoto(img: CanvasImageSource, brickSize = 0.025): HTMLCanvas
         cx = px + cw / 2,
         cy = py + ch / 2;
       const color = `rgb(${r},${g},${b})`;
- // 格内先绘制光照，最后统一应用透明度，避免多层叠画把半透明区变实心。
+      // 格内先绘制光照，最后统一应用透明度，避免多层叠画把半透明区变实心。
       ctx.save();
       ctx.beginPath();
       ctx.rect(px, py, cw, ch);
@@ -831,7 +831,7 @@ function applyPhotoMaterial(
   ctx: CanvasRenderingContext2D,
   img: CanvasImageSource,
   material: PhotoMaterial,
- // 照片槽画布矩形 + cover 映射参数
+  // 照片槽画布矩形 + cover 映射参数
   rx: number,
   ry: number,
   rw: number,
@@ -843,7 +843,7 @@ function applyPhotoMaterial(
   windowScale: number, // mirrorBlur 窗口（相对照片宽 0~1）
 ): void {
   if (material === 'none') return;
- // 离屏：照片原始适配（不 clip），材质处理后贴回槽位
+  // 离屏：照片原始适配（不 clip），材质处理后贴回槽位
   const off = document.createElement('canvas');
   off.width = Math.max(1, Math.ceil(rw));
   off.height = Math.max(1, Math.ceil(rh));
@@ -852,20 +852,20 @@ function applyPhotoMaterial(
   octx.drawImage(img, ox - rx, oy - ry, dw, dh);
 
   if (material === 'glassRefract') {
- // /7 玻璃分条（ 修复）：纯切割不缩放——原图原样保留，
- // 每条右段直接挖空（clearRect），镂空宽度左→右等差递增（8%→28%），
- // 视觉是镂空而非形变。条缘叠软高光（模糊亮带）保持玻璃感。
+    // 图6/7 玻璃分条（r32 修复）：纯切割不缩放——原图原样保留，
+    // 每条右段直接挖空（clearRect），镂空宽度左→右等差递增（8%→28%），
+    // 视觉是镂空而非形变。条缘叠软高光（模糊亮带）保持玻璃感。
     const strips = 10;
     const stripW = off.width / strips;
     for (let i = 0; i < strips; i++) {
       const x = i * stripW;
- // 镂空占比：8% → 28% 线性递增（规律递进，镂空整体不大）
+      // 镂空占比：8% → 28% 线性递增（规律递进，镂空整体不大）
       const gapRatio = 0.08 + (i / (strips - 1)) * 0.2;
       const gap = stripW * gapRatio;
- // 切割：挖掉条右段（露底色），图像其余部分 1:1 不动
+      // 切割：挖掉条右段（露底色），图像其余部分 1:1 不动
       octx.clearRect(x + stripW - gap, 0, gap, off.height);
     }
- // 条缘软高光：每条左缘叠 1 条模糊半透亮竖带（非硬线）
+    // 条缘软高光：每条左缘叠 1 条模糊半透亮竖带（非硬线）
     octx.save();
     octx.globalAlpha = 0.35;
     for (let i = 0; i <= strips; i++) {
@@ -879,17 +879,17 @@ function applyPhotoMaterial(
     }
     octx.restore();
   } else if (material === 'mirrorBlur') {
- // 镜面模糊 + 居中镂空窗口（ 重做）：blur 层叠轻噪点（颗粒感，非纯高斯）。
+    // 图8 镜面模糊 + 居中镂空窗口（r22 重做）：blur 层叠轻噪点（颗粒感，非纯高斯）。
     const src = document.createElement('canvas');
     src.width = off.width;
     src.height = off.height;
     src.getContext('2d')?.drawImage(off, 0, 0);
- // blur 层
+    // blur 层
     octx.save();
     octx.filter = `blur(${Math.max(4, off.width * 0.02)}px)`;
     octx.drawImage(src, 0, 0);
     octx.restore();
- // 模糊区叠噪点（被窗口挖空后只余模糊区颗粒）
+    // 模糊区叠噪点（被窗口挖空后只余模糊区颗粒）
     const rand = seededRandom(0x9217);
     const step = Math.max(2, Math.round(off.width / 300));
     octx.save();
@@ -903,30 +903,30 @@ function applyPhotoMaterial(
       }
     }
     octx.restore();
- // 窗口（固定居中，尺寸 windowScale × 照片宽；宽高比 0.8）
+    // 窗口（固定居中，尺寸 windowScale × 照片宽；宽高比 0.8）
     const winW = Math.max(8, off.width * Math.min(0.9, Math.max(0.1, windowScale)));
     const winH = winW * 0.8;
     const wx = (off.width - winW) / 2;
     const wy = (off.height - winH) / 2;
- // 挖掉模糊+噪点层窗口区
+    // 挖掉模糊+噪点层窗口区
     octx.globalCompositeOperation = 'destination-out';
     octx.fillRect(wx, wy, winW, winH);
     octx.globalCompositeOperation = 'source-over';
- // 清晰层填回窗口
+    // 清晰层填回窗口
     octx.drawImage(src, wx, wy, winW, winH, wx, wy, winW, winH);
- // 窗口细白描边（玻璃边感，参考图带框）
+    // 窗口细白描边（玻璃边感，参考图带框）
     octx.strokeStyle = 'rgba(255,255,255,0.55)';
     octx.lineWidth = Math.max(1, off.width * 0.003);
     octx.strokeRect(wx, wy, winW, winH);
   }
 
- // 贴回主画布（照片槽位）
+  // 贴回主画布（照片槽位）
   ctx.drawImage(off, rx, ry);
 }
 
 /**
  * 渲染入口：把 template + state 画到 ctx（画布尺寸 w×h）。
- * 同一函数服务预览（小尺寸）与导出（全尺寸）—— 。
+ * 同一函数服务预览（小尺寸）与导出（全尺寸）—— D-003。
  *
  * 层序：双色底 → 照片（完整）→ 切片（洞填 sliceColor + 转移块画在色块区）→ 质感 → 文字（最上）。
  */
@@ -949,7 +949,7 @@ export function renderTemplate(
   }
 
   const gradDef = state.gradientOverride ?? template.backgroundGradient;
- // ：shader 背景优先 —— 离屏 WebGL 渲一帧贴进来；WebGL 不可用回退渐变
+  // 003：shader 背景优先 —— 离屏 WebGL 渲一帧贴进来；WebGL 不可用回退渐变
   const shaderCanvas = gradDef?.shader ? getShaderCanvas(gradDef.shader, w, h) : null;
   if (shaderCanvas) {
     ctx.drawImage(shaderCanvas, 0, 0, w, h);
@@ -958,11 +958,11 @@ export function renderTemplate(
     ctx.fillRect(0, 0, w, h);
   }
 
- // 流体光晕：基色铺满后叠低分辨率云团（放大互渗）
+  // r22 流体光晕：基色铺满后叠低分辨率云团（放大互渗）
   if (gradDef?.mode === 'fluid') {
     drawFluidGlow(ctx, gradDef, w, h);
   }
- // ：四边暗角（径向黑叠加聚焦中央）
+  // r27 图14：四边暗角（径向黑叠加聚焦中央）
   if (gradDef?.vignette) {
     const R = Math.hypot(w, h) / 2;
     const vg = ctx.createRadialGradient(w / 2, h / 2, R * 0.45, w / 2, h / 2, R);
@@ -971,7 +971,7 @@ export function renderTemplate(
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, w, h);
   }
- // ：白点网格（等距小圆点，技术感）
+  // r27 图15：白点网格（等距小圆点，技术感）
   if (gradDef?.dotGrid) {
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
     const step = w / 32;
@@ -984,11 +984,11 @@ export function renderTemplate(
     }
   }
 
- // weave 色团互渗：from 侧团落到 to 区（反之亦然），软模糊边（多层同心圆递减 alpha）
+  // r19 weave 色团互渗：from 侧团落到 to 区（反之亦然），软模糊边（多层同心圆递减 alpha）
   if (gradDef?.mode === 'weave') {
     const rand = seededRandom(0x3a3b);
     const blob = (cx: number, cy: number, r: number, color: string) => {
- // 软边：3 层同心圆 alpha 递减，模拟未干颜料互渗
+      // 软边：3 层同心圆 alpha 递减，模拟未干颜料互渗
       for (let i = 3; i >= 1; i--) {
         ctx.globalAlpha = 0.22 * i * 0.5;
         ctx.fillStyle = color;
@@ -1001,7 +1001,7 @@ export function renderTemplate(
     const R = Math.min(w, h);
     const blobs = 10;
     for (let i = 0; i < blobs; i++) {
- // 前半团：from 色落入下半（to 区）；后半团：to 色翻上上半
+      // 前半团：from 色落入下半（to 区）；后半团：to 色翻上上半
       const isFrom = i % 2 === 0;
       const color = isFrom ? gradDef.from : gradDef.to;
       const cx = rand() * w;
@@ -1015,9 +1015,9 @@ export function renderTemplate(
     ctx.fillRect(block.rect.x * w, block.rect.y * h, block.rect.w * w, block.rect.h * h);
   }
 
- // 质感层（ 分两组）：
- // ① 画在图片图层之下的质感 —— 玻璃压花/水波纹/柔点网格/瓦楞光影/半调波：
- // 光效衬在照片后面（照片层之前绘制，照片盖上来只露边缘光效）
+  // 质感层（r34 分两组）：
+  // ① 画在图片图层之下的质感 —— 玻璃压花/水波纹/柔点网格/瓦楞光影/半调波：
+  //    光效衬在照片后面（照片层之前绘制，照片盖上来只露边缘光效）
   for (const style of state.textureStyles) {
     if (style === 'none' || !TEXTURES_BELOW_PHOTO.has(style as TextureStyle)) continue;
     const texture = template.textures.find((t) => t.style === style);
@@ -1026,7 +1026,7 @@ export function renderTemplate(
     }
   }
 
- // 照片层：完整绘制，不做任何挖除
+  // 照片层：完整绘制，不做任何挖除
   for (const slot of layers.photoSlots) {
     const img = photos.get(slot.id);
     if (!img) continue;
@@ -1052,7 +1052,7 @@ export function renderTemplate(
         slot.lightColor,
       );
     } else {
- // 照片局部材质：离屏处理（水波/玻璃分条/镜面模糊）后贴回槽位
+      // r20 照片局部材质：离屏处理（水波/玻璃分条/镜面模糊）后贴回槽位
       const rx = slot.rect.x * w;
       const ry = slot.rect.y * h;
       const rw = slot.rect.w * w;
@@ -1080,7 +1080,7 @@ export function renderTemplate(
         oy,
         state.mirrorWindow ?? 0.5,
       );
- // 照片处理效果（黑白/双色调）同样叠在材质层上
+      // 照片处理效果（黑白/双色调）同样叠在材质层上
       if (slot.effect === 'grayscale') {
         ctx.globalCompositeOperation = 'saturation';
         ctx.fillStyle = '#808080';
@@ -1102,8 +1102,8 @@ export function renderTemplate(
     }
   }
 
- // 切片层（/#6）：洞 = sliceColor 实心形状盖在照片上；
- // 转移块 = 把照片对应区域重画到色块区预设位置（Q1=A 固定位置）
+  // 切片层（V2 反馈 #5/#6）：洞 = sliceColor 实心形状盖在照片上；
+  // 转移块 = 把照片对应区域重画到色块区预设位置（Q1=A 固定位置）
   for (const slot of layers.photoSlots) {
     const img = photos.get(slot.id);
     if (!img) continue;
@@ -1122,15 +1122,15 @@ export function renderTemplate(
     const oy = ry + (rh - dh) / 2 + t.panY;
 
     for (const c of state.cutouts) {
- // 1) 洞：sliceColor 实心盖住照片该区域
+      // 1) 洞：sliceColor 实心盖住照片该区域
       ctx.save();
       traceCutout(ctx, c, w, h);
       ctx.fillStyle = c.sliceColor;
       ctx.fill();
       ctx.restore();
 
- // 2) 转移块：同形状 clip，把照片对应区域按 transfer 参数画到色块区。
- // scale=1 即与洞同尺寸；transfer.scale 相对洞尺寸缩放（bug 修复：此前乘 w/r 放大约 1/r 倍）
+      // 2) 转移块：同形状 clip，把照片对应区域按 transfer 参数画到色块区。
+      //    scale=1 即与洞同尺寸；transfer.scale 相对洞尺寸缩放（bug 修复：此前乘 w/r 放大约 1/r 倍）
       if (!c.transfer) continue;
       const tx = c.transfer.x * w;
       const ty = c.transfer.y * h;
@@ -1141,9 +1141,9 @@ export function renderTemplate(
       ctx.translate(-c.cx * w, -c.cy * h);
       traceCutout(ctx, c, w, h);
       ctx.clip();
- // 以洞中心的照片映射关系重绘（同 drawPhoto 的 cover 映射）
+      // 以洞中心的照片映射关系重绘（同 drawPhoto 的 cover 映射）
       ctx.drawImage(img, ox, oy, dw, dh);
- // 恢复照片处理效果（黑白照片的转移块也要黑白）
+      // 恢复照片处理效果（黑白照片的转移块也要黑白）
       if (slot.effect === 'grayscale') {
         ctx.globalCompositeOperation = 'saturation';
         ctx.fillStyle = '#808080';
@@ -1154,8 +1154,8 @@ export function renderTemplate(
     }
   }
 
- // ② 画在图片图层之上的质感 —— 噪点颗粒/盲文凸点/米白点阵：
- // 颗粒/点阵直接压在照片上（ 之前的原有层序，照片之文字之下）
+  // ② 画在图片图层之上的质感 —— 噪点颗粒/盲文凸点/米白点阵：
+  //    颗粒/点阵直接压在照片上（r34 之前的原有层序，照片之文字之下）
   for (const style of state.textureStyles) {
     if (style === 'none' || TEXTURES_BELOW_PHOTO.has(style as TextureStyle)) continue;
     const texture = template.textures.find((t) => t.style === style);
@@ -1164,9 +1164,9 @@ export function renderTemplate(
     }
   }
 
- // 文字层（槽位制 + 效果；inlineImage 从照片槽取材）
+  // 文字层（槽位制 + 效果；inlineImage 从照片槽取材）
   for (const field of layers.texts) {
- // em随实际字号缩放，measureText与绘制共用字距；逐行复位避免串到其它文字。
+    // em随实际字号缩放，measureText与绘制共用字距；逐行复位避免串到其它文字。
     ctx.letterSpacing = `${field.letterSpacing ?? 0}em`;
     const content = state.texts.get(field.id) ?? field.default;
     const inline = field.inlineImage
@@ -1179,7 +1179,7 @@ export function renderTemplate(
           img: photos.get(field.inlineImage.photoSlotId ?? 'main-photo'),
         }
       : undefined;
- // credit 颜色覆盖仅 credit； 字体全局同步（诗句行 + sticker 洞块 + credit）
+    // r22 credit 颜色覆盖仅 credit；r35 字体全局同步（诗句行 + sticker 洞块 + credit）
     const isCredit = field.id === 'credit';
     const creditColor = isCredit && state.creditColor ? state.creditColor : field.color;
     drawText(
@@ -1196,17 +1196,17 @@ export function renderTemplate(
       inline,
       state.fontOverride,
     );
- // 1:1 置换（：挖空块 ⇄ 照片洞块是同一对矩形的整块互换）：
- // - 洞块尺寸 = 被挖字符在缩放后字号下的实测量宽 × 行高（两侧同一矩形）
- // - 诗句侧：照片挖洞块（渐变原色采样 + 字母）贴到挖空位
- // - 照片侧：诗句挖空位的照片裁块贴到洞里
+    // 1:1 置换（反馈 #3：挖空块 ⇄ 照片洞块是同一对矩形的整块互换）：
+    // - 洞块尺寸 = 被挖字符在缩放后字号下的实测量宽 × 行高（两侧同一矩形）
+    // - 诗句侧：照片挖洞块（渐变原色采样 + 字母）贴到挖空位
+    // - 照片侧：诗句挖空位的照片裁块贴到洞里
     if (inline?.sticker && inline.charEnd > inline.charStart) {
       const frag = content.slice(inline.charStart, inline.charEnd);
       const fragImg = inline.img;
       const iw0 = fragImg && 'width' in fragImg ? (fragImg.width as number) : 0;
       const ih0 = fragImg && 'height' in fragImg ? (fragImg.height as number) : 0;
       if (frag && fragImg && iw0 && ih0) {
- // 照片槽映射参数（同照片层 cover 公式）：画布矩形 ↔ 源图坐标换算
+        // 照片槽映射参数（同照片层 cover 公式）：画布矩形 ↔ 源图坐标换算
         const photo = layers.photoSlots.find((s) => s.id === (inline.photoSlotId ?? 'main-photo'));
         if (photo && photo.rect.w > 0) {
           const t = state.transforms.get(photo.id) ?? { panX: 0, panY: 0, zoom: 1 };
@@ -1220,36 +1220,36 @@ export function renderTemplate(
           const ox = prx + (prw - dw) / 2 + t.panX;
           const oy = pry + (prh - dh) / 2 + t.panY;
 
- // 两侧同一矩形：宽 = 被挖字符实测量宽，高 = 行高（drawText 同基准）
+          // 两侧同一矩形：宽 = 被挖字符实测量宽，高 = 行高（drawText 同基准）
           const layout = layoutPoemLine(ctx, content, field, inline, w, h, state.fontOverride);
           if (layout.size <= 0) continue;
           const { holeW } = layout;
           const holeH = layout.size * 0.98;
           const baselineY = field.rect.y * h + field.rect.h * h * 0.78;
           const holeTop = baselineY - holeH;
- // 诗句侧洞块左上 x（挖空位）
+          // 诗句侧洞块左上 x（挖空位）
           const poemHoleX = layout.startX + layout.beforeW;
- // 照片侧贴纸左上（模板 sticker 矩形）
+          // 照片侧贴纸左上（模板 sticker 矩形）
           const stX = inline.sticker.rect.x * w;
           const stY = inline.sticker.rect.y * h;
 
- // 1) 照片侧洞：双色底在**诗句洞位**（上半）的原色采样 + 字母叠回。
- // 采样位置 = 洞块若未被换走时所处的画布位置（holeTop 对齐基线）
+          // 1) 照片侧洞：双色底在**诗句洞位**（上半）的原色采样 + 字母叠回。
+          //    采样位置 = 洞块若未被换走时所处的画布位置（holeTop 对齐基线）
           const bgGradDef = state.gradientOverride ?? template.backgroundGradient;
- // 在离屏层画洞块（原色 + 字母），再整块平移到照片洞
+          // 在离屏层画洞块（原色 + 字母），再整块平移到照片洞
           const off = document.createElement('canvas');
           off.width = Math.max(1, Math.ceil(holeW));
           off.height = Math.max(1, Math.ceil(holeH));
           const octx = off.getContext('2d');
           if (octx) {
             octx.letterSpacing = ctx.letterSpacing;
- // 离屏画布 = 洞块矩形：在 (0,0) 处画背景在诗句洞位的原色。
- // 双色底以整幅画布为坐标系，洞块采样原点 = (poemHoleX, holeTop)
+            // 离屏画布 = 洞块矩形：在 (0,0) 处画背景在诗句洞位的原色。
+            // 双色底以整幅画布为坐标系，洞块采样原点 = (poemHoleX, holeTop)
             const bgShaderCanvas = bgGradDef?.shader
               ? getShaderCanvas(bgGradDef.shader, w, h)
               : null;
             if (bgShaderCanvas) {
- // shader 背景：直接从 shader 底图裁出洞位区域的像素
+              // shader 背景：直接从 shader 底图裁出洞位区域的像素
               octx.drawImage(
                 bgShaderCanvas,
                 poemHoleX,
@@ -1267,7 +1267,7 @@ export function renderTemplate(
                 : '#ffffff';
               octx.fillRect(0, 0, off.width, off.height);
             }
- // 字母居中叠回洞块（字号 = 行字号，宽超洞块则整体缩字号； 全局字体同步）
+            // 字母居中叠回洞块（字号 = 行字号，宽超洞块则整体缩字号；r35 全局字体同步）
             const font = (size: number) =>
               (
                 state.fontOverride ?? "900 %SZpx 'Archivo Black', 'Arial Black', sans-serif"
@@ -1280,14 +1280,14 @@ export function renderTemplate(
             }
             octx.textAlign = 'center';
             octx.textBaseline = 'alphabetic';
- // 实心字：实色直接绘制（ 反馈：浮雕半透明不要，要实心）
+            // 实心字：实色直接绘制（r8 反馈：浮雕半透明不要，要实心）
             octx.fillStyle = inline.sticker.color;
             octx.fillText(frag, off.width / 2, off.height * 0.82);
- // 整块平移到照片洞（sticker 左上 = 洞块目标位置）
+            // 整块平移到照片洞（sticker 左上 = 洞块目标位置）
             ctx.drawImage(off, stX, stY);
           }
 
- // 2) 诗句侧图块 = 照片在贴纸矩形区域的裁块（1:1），贴到挖空位
+          // 2) 诗句侧图块 = 照片在贴纸矩形区域的裁块（1:1），贴到挖空位
           const sx0 = ((stX - ox) / dw) * iw0;
           const sy0 = ((stY - oy) / dh) * ih0;
           const sw0 = (holeW / dw) * iw0;

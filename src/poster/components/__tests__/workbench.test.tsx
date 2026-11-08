@@ -72,7 +72,6 @@ describe('S1/S2 workbench', () => {
     await act(async () => ready());
     expect(vi.mocked(renderTemplate).mock.calls.length).toBeGreaterThan(draws);
     expect(host.querySelector('canvas')).toBe(canvas);
-    expect(host.querySelector('.workbench-proof-caption')?.textContent).toContain('1290×2293');
     expect(host.querySelector('h1')?.textContent).toBe('Poetry Wallpaper');
   });
   it('keeps one dock, region, file input and canvas through grouping and close', async () => {

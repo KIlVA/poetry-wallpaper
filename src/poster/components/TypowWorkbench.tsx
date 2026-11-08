@@ -10,7 +10,7 @@ import { PosterCanvas } from './PosterCanvas';
 import { ToolDock, type DockGroup } from './ToolDock';
 import { EditorSheet, SheetLabel } from './EditorSheet';
 import { MaterialSample } from './MaterialSample';
-// 真字体（fontsource 本地打包，canvas 可用）： 删 Titan One，加五款 display 字体
+// r35 真字体（fontsource 本地打包，canvas 可用）：r37 删 Titan One，加五款 display 字体
 import '@fontsource/archivo-black';
 import '@fontsource/vt323';
 import '@fontsource/montserrat';
@@ -20,11 +20,10 @@ import '@fontsource/zen-tokyo-zoo';
 
 // 单一竖版导出：按 1024×1820 模板等比输出 1290×2293，不提供正方形。
 const EXPORT_W = 1290;
-const EXPORT_H = Math.round((EXPORT_W * TYPOW_POEM.canvasH) / TYPOW_POEM.canvasW);
 type PhotoMaterial = NonNullable<EditorState['photoMaterial']>;
 type TextureStyle = NonNullable<EditorState['textureStyles']>[number];
 
-// 照片局部材质（仅照片区域效果）； 删水波纹
+// r22 照片局部材质（仅照片区域效果）；r31 删水波纹
 const PHOTO_MATERIALS: { value: PhotoMaterial; label: string }[] = [
   { value: 'none', label: '无' },
   { value: 'glassRefract', label: '玻璃分条' },
@@ -32,7 +31,7 @@ const PHOTO_MATERIALS: { value: PhotoMaterial; label: string }[] = [
   { value: 'brickMosaic', label: '积木' },
 ];
 
-// 字体选择器（全局同步：诗句行 + sticker 洞块 + credit 全走 fontOverride）。
+// r35 字体选择器（全局同步：诗句行 + sticker 洞块 + credit 全走 fontOverride）。
 // value = canvas font 简写模板，%SZ 为字号占位符（引擎替换）。
 const FONT_OPTIONS = [
   { value: "900 %SZpx 'Archivo Black', 'Arial Black', sans-serif", label: 'Archivo Black' },
@@ -43,7 +42,7 @@ const FONT_OPTIONS = [
   { value: "400 %SZpx 'Zen Tokyo Zoo', 'Impact', sans-serif", label: 'Zen Tokyo Zoo' },
 ] as const;
 
-// 盲文； shader 质感 5 项； 二轮删故障风（glitchArt）； 删网点、加米白点阵
+// r13 盲文；003 shader 质感 5 项；r31 二轮删故障风（glitchArt）；r32 删网点、加米白点阵
 const TEXTURE_OPTIONS: { value: TextureStyle; label: string }[] = [
   { value: 'none', label: '无' },
   { value: 'grain', label: '噪点' },
@@ -57,7 +56,7 @@ const TEXTURE_OPTIONS: { value: TextureStyle; label: string }[] = [
 ];
 
 /**
- * 背景预设（ 改版）：① 单色渐变（同色系深浅 + Custom 自选双色）
+ * 背景预设（r31 改版）：① 单色渐变（同色系深浅 + Custom 自选双色）
  * ② 双色撞色（硬分界线）③ 多色渐变（深邃，白字可读）④ shader 程序化底。
  */
 type GradientPreset = {
@@ -74,7 +73,7 @@ type GradientPreset = {
   group?: string;
 };
 
-// 三轮：粉回归；删香芋紫；custom（五彩按钮）放第一
+// r31 三轮：粉回归；删香芋紫；custom（五彩按钮）放第一
 const GRADIENT_SOFT: GradientPreset[] = [
   { label: 'custom', from: '#8fc3f7', to: '#d0e7ff', custom: true },
   { label: '粉', from: '#b04ef0', to: '#ff5f8f' },
@@ -84,7 +83,7 @@ const GRADIENT_SOFT: GradientPreset[] = [
   { label: '淡蓝', from: '#d0e7ff', to: '#8fc3f7' },
 ];
 
-// 三轮：撞色组也加 custom（放第一）
+// r31 三轮：撞色组也加 custom（放第一）
 const GRADIENT_SPLIT: GradientPreset[] = [
   { label: 'custom', from: '#e60023', to: '#1e4fd8', mode: 'splitY', split: 0.5, custom: true },
   { label: '红蓝', from: '#e60023', to: '#1e4fd8', mode: 'splitY', split: 0.5 },
@@ -128,14 +127,14 @@ const GRADIENT_MULTI: GradientPreset[] = [
       { at: 1, color: '#ffffff' },
     ],
   },
- // ── shader 程序化底：WebGL fragment shader 渲染的整幅底图 ──
+  // ── shader 程序化底（003）：WebGL fragment shader 渲染的整幅底图 ──
   { label: '压花玻璃', from: '#cfe4ea', to: '#7db8d4', shader: 'glass' },
   { label: '水波纹', from: '#87d4d0', to: '#219e9e', shader: 'ripple' },
   { label: '柔点黑白', from: '#ffffff', to: '#ffffff', shader: 'dotsBlurBg' },
   { label: '瓦楞黑白', from: '#e8e8e8', to: '#c8c8c8', shader: 'corrugated' },
 ];
 
-// ：dock 分组 → sheet 标题
+// 004：dock 分组 → sheet 标题
 const GROUP_TITLES: Record<Exclude<DockGroup, null>, string> = {
   photo: '照片',
   bg: '背景',
@@ -203,18 +202,18 @@ export function TypowWorkbench({ prepareFonts }: { prepareFonts: () => Promise<u
     transforms: new Map(),
     texts: new Map(),
     cutouts: [],
- // 质感多选：默认噪点
+    // r21 质感多选：默认噪点
     textureStyles: ['grain'],
   }));
- // 选中态直接来自作品状态，避免 StrictMode 下两份质感状态失同步。
+  // 选中态直接来自作品状态，避免 StrictMode 下两份质感状态失同步。
   const textureStyles = new Set(state.textureStyles);
   const [gradient, setGradient] = useState<GradientPreset | undefined>(undefined);
- // ：照片材质 / credit 颜色 / credit 效果 / 镜面模糊窗口
+  // r21：照片材质 / credit 颜色 / credit 效果 / 镜面模糊窗口
   const [photoMaterial, setPhotoMaterial] = useState<PhotoMaterial>('none');
   const [creditColor, setCreditColor] = useState<string>(
     TYPOW_POEM.layers.texts.find((t) => t.id === 'credit')?.color ?? '#7de0d3',
   );
- // 字体全局同步：fontOverride 驱动全部文字层；默认 Archivo Black（与模板一致）
+  // r35 字体全局同步：fontOverride 驱动全部文字层；默认 Archivo Black（与模板一致）
   const [font, setFont] = useState<string>(FONT_OPTIONS[0].value);
   const [mirrorWindow, setMirrorWindow] = useState(0.5);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -249,7 +248,7 @@ export function TypowWorkbench({ prepareFonts }: { prepareFonts: () => Promise<u
       urls.clear();
     };
   }, []);
- // React 已提交新照片后才释放旧图；进行中的导出快照继续保留。
+  // React 已提交新照片后才释放旧图；进行中的导出快照继续保留。
   useEffect(() => {
     for (const photo of ownedPhotos.current) {
       if (photo !== state.photos.get('main-photo') && photo !== exportPhotoRef.current) {
@@ -269,7 +268,7 @@ export function TypowWorkbench({ prepareFonts }: { prepareFonts: () => Promise<u
     proofReturnRef.current = true;
     setProof(false);
   };
- // 单一编辑状态保留当前组；关闭不从 ref 读取渲染数据。
+  // 单一编辑状态保留当前组；关闭不从 ref 读取渲染数据。
   const onOpen = (group: DockGroup, trigger: HTMLButtonElement) => {
     triggerRef.current = trigger;
     setEditor({ group: group ?? editor.group, open: desktop || group !== null });
@@ -295,7 +294,7 @@ export function TypowWorkbench({ prepareFonts }: { prepareFonts: () => Promise<u
       returnFocusRef.current = false;
     }
   });
- // canvas 字体：@font-face 不随 ctx.font 下载，显式 load 后重渲（首次挂载即可见）
+  // r36 canvas 字体：@font-face 不随 ctx.font 下载，显式 load 后重渲（首次挂载即可见）
   const [fontsReady, setFontsReady] = useState(false);
   useEffect(() => {
     let active = true;
@@ -308,7 +307,7 @@ export function TypowWorkbench({ prepareFonts }: { prepareFonts: () => Promise<u
     };
   }, [prepareFonts]);
 
- // ：把照片材质/credit 覆盖/镜面窗口合进 state（驱动 PosterCanvas 重渲）
+  // r20：把照片材质/credit 覆盖/镜面窗口合进 state（驱动 PosterCanvas 重渲）
   const syncExtras = useCallback(
     (patch: Partial<EditorState>) => setState((s) => ({ ...s, ...patch })),
     [],
@@ -320,8 +319,8 @@ export function TypowWorkbench({ prepareFonts }: { prepareFonts: () => Promise<u
     setState((s) => ({ ...s, texts: new Map(s.texts).set(id, text) }));
   }, []);
 
- // 照片比例规则：竖图（高>宽，如 9:16）上传时垂直居中预裁为 1:1；
- // 16:9 / 1:1 / 横图原样进渲染（contain 整图适配长条区）
+  // r38 照片比例规则：竖图（高>宽，如 9:16）上传时垂直居中预裁为 1:1；
+  // 16:9 / 1:1 / 横图原样进渲染（contain 整图适配长条区）
   const onFile = useCallback((file: File) => {
     if (uploadBusyRef.current) return;
     if (!file.size || !file.type.startsWith('image/')) {
@@ -350,7 +349,7 @@ export function TypowWorkbench({ prepareFonts }: { prepareFonts: () => Promise<u
       });
   }, []);
 
- // credit/材质变更即同步 state（与渐变/质感控件同模式）
+  // r20 credit/材质变更即同步 state（与渐变/质感控件同模式）
   const pickCreditColor = useCallback(
     (c: string) => {
       setCreditColor(c);
@@ -358,7 +357,7 @@ export function TypowWorkbench({ prepareFonts }: { prepareFonts: () => Promise<u
     },
     [syncExtras],
   );
- // 字体选择器：全局同步（诗句行 + credit 同一 fontOverride）
+  // r35 字体选择器：全局同步（诗句行 + credit 同一 fontOverride）
   const pickFont = useCallback(
     (f: string) => {
       setFont(f);
@@ -400,13 +399,13 @@ export function TypowWorkbench({ prepareFonts }: { prepareFonts: () => Promise<u
     [state, prepareFonts],
   );
 
- // 四轮：带组名 pick（单色/撞色 custom 解耦，选中态按组判）
+  // r31 四轮：带组名 pick（单色/撞色 custom 解耦，选中态按组判）
   const pickGradient = useCallback((g: GradientPreset, group: string) => {
     setGradient({ ...g, group });
     setState((s) => ({ ...s, gradientOverride: g }));
   }, []);
 
- // custom 双色：改色即同步渲染（保持选中 custom 预设）
+  // r31 custom 双色：改色即同步渲染（保持选中 custom 预设）
   const pickCustomColor = useCallback(
     (which: 'from' | 'to', color: string) => {
       if (!gradient) return;
@@ -417,14 +416,14 @@ export function TypowWorkbench({ prepareFonts }: { prepareFonts: () => Promise<u
     [gradient],
   );
 
- // ：分界线滑杆（UI state + 渲染 state 同步，原 section 版同逻辑）
+  // 004：分界线滑杆（UI state + 渲染 state 同步，原 section 版同逻辑）
   const onSplitChange = (v: number) => {
     if (!gradient) return;
     const next = { ...gradient, split: v };
     setGradient(next);
     setState((s) => ({ ...s, gradientOverride: next }));
   };
- // ：质感多选 toggle（UI state + 渲染 state 同步）
+  // 004：质感多选 toggle（UI state + 渲染 state 同步）
   const onToggleTexture = (value: TextureStyle) => {
     setState((s) => {
       const next = new Set(s.textureStyles);
@@ -439,7 +438,7 @@ export function TypowWorkbench({ prepareFonts }: { prepareFonts: () => Promise<u
     syncExtras({ mirrorWindow: v });
   };
 
- // 同一份分组面板（手机 sheet / 桌面右栏共用；props 完全一致）
+  // 同一份分组面板（手机 sheet / 桌面右栏共用；props 完全一致）
   const groupPanels = (
     <GroupPanels
       group={activeGroup}
@@ -501,27 +500,7 @@ export function TypowWorkbench({ prepareFonts }: { prepareFonts: () => Promise<u
       {/* 顶栏：LOGO + 切片转移（A24：hairline 下边、无阴影） */}
       <header className="workbench-header" hidden={proof}>
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 md:px-8">
-          <div className="flex items-center gap-3">
-            {/* LOGO：诗行嵌图的抽象形，单色近黑 */}
-            <svg width="30" height="30" viewBox="0 0 34 34" aria-hidden className="shrink-0">
-              <circle
-                cx="17"
-                cy="17"
-                r="15.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.4"
-              />
-              <rect x="7" y="12" width="4.5" height="4.5" fill="currentColor" />
-              <rect x="13.5" y="12" width="7" height="4.5" fill="currentColor" opacity="0.45" />
-              <rect x="22.5" y="12" width="4.5" height="4.5" fill="currentColor" />
-              <rect x="7" y="18.5" width="20" height="1.6" fill="currentColor" opacity="0.55" />
-              <rect x="7" y="22" width="13" height="1.6" fill="currentColor" opacity="0.35" />
-            </svg>
-            <div>
-              <h1 className="workbench-brand">Poetry Wallpaper</h1>
-            </div>
-          </div>
+          <h1 className="workbench-brand">Poetry Wallpaper</h1>
           <Button
             ref={proofTriggerRef}
             type="button"
@@ -553,12 +532,6 @@ export function TypowWorkbench({ prepareFonts }: { prepareFonts: () => Promise<u
                 fontsReady={fontsReady}
                 onMaterialStatus={setMaterialWarning}
               />
-            </div>
-            <div className="workbench-proof-caption" hidden={proof}>
-              <span>校样</span>
-              <span>
-                {EXPORT_W}×{EXPORT_H}
-              </span>
             </div>
           </div>
         </div>
@@ -641,7 +614,7 @@ async function downloadPng(
       a.remove();
     }
     const downloadUrl = url;
- // 不在 click 后立即 revoke；卸载时也清理尚未回收的 URL。
+    // 不在 click 后立即 revoke；卸载时也清理尚未回收的 URL。
     const timer = setTimeout(() => {
       URL.revokeObjectURL(downloadUrl);
       urls.delete(downloadUrl);
@@ -873,7 +846,7 @@ function GroupPanels({
     );
   }
 
- // group === 'style'：整版质感
+  // group === 'style'：整版质感
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
@@ -990,7 +963,7 @@ function BGPanel({
     { title: '双色撞色', presets: GRADIENT_SPLIT },
     { title: '多色渐变', presets: GRADIENT_MULTI },
   ] as const;
- // 分类只浏览，不替用户选择或改作品。
+  // 分类只浏览，不替用户选择或改作品。
   const [category, setCategory] = useState(() => gradient?.group ?? TABS[0].title);
   const activeTab = TABS.find((t) => t.title === category) ?? TABS[0];
   return (
